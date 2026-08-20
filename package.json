@@ -8,10 +8,13 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "tsc && node --enable-source-maps dist/src/index.js",
+    "dev": "tsc && node --env-file-if-exists=.env --enable-source-maps dist/src/index.js",
     "build": "tsc",
     "start": "node dist/src/index.js",
-    "test": "tsc && node --test \"dist/test/**/*.test.js\""
+    "test": "tsc && node --test \"dist/test/**/*.test.js\"",
+    "db:start": "node scripts/pg.mjs start",
+    "db:stop": "node scripts/pg.mjs stop",
+    "db:status": "node scripts/pg.mjs status"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

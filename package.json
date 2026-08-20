@@ -1,0 +1,28 @@
+{
+  "name": "korp2-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "KORP2 Iteration 1 delivery tracker — MCP endpoint and (later) UI",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsc && node --enable-source-maps dist/src/index.js",
+    "build": "tsc",
+    "start": "node dist/src/index.js",
+    "test": "tsc && node --test \"dist/test/**/*.test.js\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "express": "^5.2.1",
+    "pg": "^8.23.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^20.19.0",
+    "@types/pg": "^8.11.0",
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,0 +1,34 @@
+# Local development database only. Never used in deployment — DigitalOcean
+# provides managed Postgres and injects DATABASE_URL.
+#
+#   docker compose up -d      start it
+#   docker compose down       stop it, keep the data
+#   docker compose down -v    stop it and throw the data away (next boot re-seeds)
+#
+# Compose reads .env from this directory, so POSTGRES_PASSWORD is picked up from
+# there if you set it. The fallback below is a local-only placeholder, not a
+# secret: it guards a throwaway database on your own machine.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: korp2-tracker-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: korp2
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-korp2_local_dev_only}
+      POSTGRES_DB: korp2_tracker
+    ports:
+      - '5432:5432'
+    volumes:
+      - korp2_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # The app runs migrations before it binds the port, so it needs the
+      # database actually accepting connections, not just the container up.
+      test: ['CMD-SHELL', 'pg_isready -U korp2 -d korp2_tracker']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  korp2_pgdata:

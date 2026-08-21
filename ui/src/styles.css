@@ -1,0 +1,1540 @@
+/*
+ * KORP2 tracker — design tokens.
+ *
+ * Six named values, everything else derived by alpha over ground. Two hues,
+ * both reserved for status: --work (steel, the one progress hue, used at four
+ * densities) and --blocked (rust). Anything that is not a status is greyscale.
+ * If you need a seventh grey, derive it; do not name it.
+ */
+
+:root {
+  /* The six. */
+  --ground: #0f0f0e; /* the page — flat neutral near-black, no blue cast */
+  --well: #1a1a17; /* recesses: empty rail track, inputs. Never a card. */
+  --ink: #ede9e1; /* bone. Text and all figures. */
+  --ink-quiet: #8b877f; /* labels, units, out-of-scope rows */
+  --work: #8fb2c4; /* STATUS ONLY. Steel. */
+  --blocked: #c2612c; /* STATUS ONLY. Oxidised rust. */
+
+  /* Derived, not named. */
+  --rule: rgb(237 233 225 / 0.14);
+  --rule-faint: rgb(237 233 225 / 0.07);
+  --band: rgb(237 233 225 / 0.04);
+
+  /*
+   * IBM Plex Mono for ids, refs, day counts, pills, rail numerals — drawn for
+   * dense technical tables, with a 1/l/I that stays distinct at 12px, which the
+   * L01/I1/G15 key space needs.
+   *
+   * Source Serif 4 for short names, notes and question prose. The split is
+   * load-bearing: it shows which parts of a row a person typed and which parts
+   * the estimates workbook produced.
+   */
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --text: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, 'Times New Roman', serif;
+
+  /* Persistent chrome. Sums to 204px; the register gets what is left. */
+  --h-masthead: 28px;
+  --h-rail: 96px;
+  --h-position: 24px;
+  --h-nav: 32px;
+  --h-statusbar: 24px;
+  --h-row: 26px;
+
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Prose and short names — the other half of the split. */
+.text {
+  font-family: var(--text);
+  font-size: 13px;
+  line-height: 1.35;
+  font-variation-settings: 'opsz' 13;
+}
+
+.quiet {
+  color: var(--ink-quiet);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Focus is visible on both --ground and --well: a bone ring with a ground gap. */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 1px var(--ground);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+  color: var(--ink);
+  background: var(--well);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: 6px 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ── Shell ─────────────────────────────────────────────────────────────── */
+
+.shell {
+  display: grid;
+  grid-template-rows: var(--h-masthead) var(--h-rail) var(--h-position) var(--h-nav) 1fr var(--h-statusbar);
+  height: 100%;
+  min-width: 1280px;
+}
+
+.masthead,
+.positionline,
+.nav,
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+
+.masthead {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  justify-content: space-between;
+}
+
+.masthead__name {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.masthead__right {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  color: var(--ink-quiet);
+}
+
+/*
+ * The v6 caveat is not dismissible. Reading actuals as variance against a
+ * baseline that is about to increase is the mistake the seed warns about in
+ * writing, so it rides in the masthead. Greyscale — it is not a status.
+ */
+.caveat {
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  padding: 1px 6px;
+}
+
+.sep {
+  color: var(--rule);
+}
+
+/* ── Budget rail ───────────────────────────────────────────────────────── */
+
+.rail {
+  display: grid;
+  /* scale · baseline mark · track · actual mark · legend · at-risk */
+  grid-template-rows: 11px 11px 24px 11px 11px 14px;
+  row-gap: 2px;
+  align-content: center;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.rail__scale {
+  position: relative;
+  font-size: 10px;
+  color: var(--ink-quiet);
+}
+
+.rail__scale-mark {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+.rail__scale-mark--first {
+  transform: none;
+}
+
+.rail__scale-mark--last {
+  transform: translateX(-100%);
+}
+
+.rail__track {
+  position: relative;
+  height: 24px;
+  display: flex;
+  align-items: stretch;
+}
+
+.rail__run {
+  display: flex;
+  height: 100%;
+  background: var(--well);
+  outline: 1px solid var(--rule);
+  outline-offset: -1px;
+}
+
+/*
+ * Severed from the track, not appended to it: NOT_MINE and DESCOPED days are
+ * in the v5 baseline but must never count toward progress, and a hairline gap
+ * says so without a footnote.
+ */
+.rail__gap {
+  flex: none;
+}
+
+.rail__stub {
+  height: 100%;
+  border: 1px dashed var(--rule);
+  color: var(--ink-quiet);
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.seg {
+  height: 100%;
+  transition: width 180ms ease-out;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.seg__label {
+  font-size: 10px;
+  padding-left: 5px;
+  color: var(--ground);
+  white-space: nowrap;
+}
+
+/*
+ * The density ramp. One hue at four densities — denser hatch is further along —
+ * so the encoding reads without a legend.
+ */
+.seg--DONE {
+  background: var(--work);
+}
+
+.seg--TESTED {
+  background: repeating-linear-gradient(45deg, var(--work) 0 1px, transparent 1px 3px);
+}
+
+.seg--BUILT {
+  background: repeating-linear-gradient(45deg, var(--work) 0 1px, transparent 1px 6px);
+}
+
+.seg--IN_PROGRESS {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--work);
+}
+
+.seg--BLOCKED {
+  background: var(--blocked);
+}
+
+.seg--NOT_STARTED {
+  background: none;
+}
+
+.seg--TESTED .seg__label,
+.seg--BUILT .seg__label,
+.seg--IN_PROGRESS .seg__label,
+.seg--NOT_STARTED .seg__label {
+  color: var(--ink-quiet);
+}
+
+.seg--BLOCKED .seg__label {
+  color: var(--ink);
+}
+
+/*
+ * Actual against baseline, never a percentage. Both marks are greyscale
+ * because colour is spent on status: a hairline tick above the track for the
+ * baseline of the lines that have actuals, a caret below for the actual spend.
+ */
+.rail__marks {
+  position: relative;
+  height: 11px;
+}
+
+.rail__mark {
+  position: absolute;
+  font-size: 10px;
+  line-height: 11px;
+  color: var(--ink);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* A 3px leader ties each label to its exact day position on the track. */
+.rail__mark::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 1px;
+  height: 3px;
+  background: var(--ink);
+}
+
+.rail__mark--baseline::after {
+  bottom: -3px;
+}
+
+.rail__mark--actual::after {
+  top: -3px;
+}
+
+.rail__legend {
+  display: flex;
+  gap: 14px;
+  font-size: 10px;
+  color: var(--ink-quiet);
+  overflow: hidden;
+}
+
+.rail__legend b {
+  color: var(--ink);
+  font-weight: 400;
+}
+
+/*
+ * The at-risk band: days behind an OPEN hard blocker whatever the declared
+ * status. A magnitude anchored at zero, not a position on the track — the
+ * lines it counts are scattered across every status.
+ */
+.rail__atrisk {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 14px;
+  font-size: 10px;
+}
+
+/*
+ * The full 62 days as a hairline, with the at-risk days filled solid against
+ * it. Read as a proportion of the whole budget rather than as a rule under the
+ * legend — a magnitude anchored at zero, since the lines it counts are
+ * scattered across every status and have no single position on the track.
+ */
+.rail__atrisk-scale {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--rule-faint);
+}
+
+.rail__atrisk-bar {
+  position: absolute;
+  left: 0;
+  height: 3px;
+  background: var(--blocked);
+}
+
+.rail__atrisk-label {
+  margin-left: auto;
+  position: relative;
+  padding-left: 10px;
+  background: var(--ground);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.rail__atrisk-refs {
+  color: var(--ink-quiet);
+}
+
+/* ── Position line ─────────────────────────────────────────────────────── */
+
+.positionline {
+  font-size: 11px;
+  color: var(--ink-quiet);
+}
+
+.positionline b {
+  color: var(--ink);
+  font-weight: 400;
+}
+
+/* ── Nav ───────────────────────────────────────────────────────────────── */
+
+.nav {
+  gap: 0;
+}
+
+/* Active state is weight and a bone underline, never colour — colour is status. */
+.nav__item {
+  height: 100%;
+  padding: 0 14px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-quiet);
+  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.nav__item:hover {
+  color: var(--ink);
+}
+
+.nav__item[aria-current='page'] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+.nav__count {
+  color: var(--ink-quiet);
+  font-size: 10px;
+}
+
+.nav__item[aria-current='page'] .nav__count {
+  color: var(--ink);
+}
+
+/* ── Views ─────────────────────────────────────────────────────────────── */
+
+.view {
+  overflow: auto;
+  padding: 24px 16px;
+}
+
+.placeholder {
+  border: 1px dashed var(--rule);
+  padding: 20px;
+  max-width: 620px;
+  color: var(--ink-quiet);
+}
+
+.placeholder h2 {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.placeholder p {
+  margin: 0;
+}
+
+/* ── Status bar ────────────────────────────────────────────────────────── */
+
+.statusbar {
+  border-bottom: 0;
+  border-top: 1px solid var(--rule);
+  font-size: 10px;
+  color: var(--ink-quiet);
+  justify-content: space-between;
+}
+
+.statusbar__left {
+  display: flex;
+  gap: 14px;
+}
+
+.linkish {
+  color: var(--ink-quiet);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.linkish:hover {
+  color: var(--ink);
+}
+
+/* ── Token gate ────────────────────────────────────────────────────────── */
+
+.gate {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.gate__panel {
+  width: 440px;
+  border: 1px solid var(--rule);
+  background: var(--ground);
+  padding: 24px;
+}
+
+.gate__title {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  margin: 0 0 4px;
+  font-weight: 500;
+}
+
+.gate__sub {
+  margin: 0 0 20px;
+  color: var(--ink-quiet);
+}
+
+.gate__label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-quiet);
+  margin-bottom: 6px;
+}
+
+.gate__field {
+  display: flex;
+  gap: 8px;
+}
+
+.gate__field input {
+  flex: 1;
+  min-width: 0;
+}
+
+.gate__submit {
+  border: 1px solid var(--rule);
+  padding: 0 14px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  background: var(--well);
+}
+
+.gate__submit:hover:not(:disabled) {
+  border-color: var(--ink-quiet);
+}
+
+.gate__submit:disabled {
+  color: var(--ink-quiet);
+  cursor: default;
+}
+
+.gate__note {
+  margin: 16px 0 0;
+  color: var(--ink-quiet);
+  border-top: 1px solid var(--rule-faint);
+  padding-top: 12px;
+}
+
+/* Errors are greyscale by the same rule that governs everything else. */
+.gate__error {
+  margin: 14px 0 0;
+  border-left: 2px solid var(--ink);
+  padding-left: 10px;
+  color: var(--ink);
+}
+
+.loading {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--ink-quiet);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+/* ── Lines register ────────────────────────────────────────────────────── */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.view--lines {
+  display: grid;
+  grid-template-rows: 30px 1fr;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Filters: a control strip across the top of the view, never a sidebar —
+   at 1280 the width belongs to the table. */
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.chip {
+  border: 1px solid transparent;
+  padding: 2px 6px;
+  color: var(--ink-quiet);
+  letter-spacing: 0.04em;
+}
+
+.chip:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.chip[aria-pressed='true'] {
+  color: var(--ink);
+  border-color: var(--rule);
+  background: var(--well);
+}
+
+.chip:disabled {
+  color: rgb(237 233 225 / 0.22);
+  cursor: default;
+}
+
+.chip__count {
+  color: var(--ink-quiet);
+  padding-left: 3px;
+}
+
+.chip[aria-pressed='true'] .chip__count {
+  color: var(--ink);
+}
+
+.filters__rule {
+  width: 1px;
+  height: 14px;
+  background: var(--rule);
+  margin: 0 4px;
+}
+
+.filters__select {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-quiet);
+}
+
+.filters__select select {
+  font: inherit;
+  font-size: 10px;
+  color: var(--ink);
+  background: var(--well);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: 2px 4px;
+}
+
+.filters__spacer {
+  margin-left: auto;
+}
+
+.filters__shown {
+  color: var(--ink-quiet);
+}
+
+/* ── The table ─────────────────────────────────────────────────────────── */
+
+.grid {
+  overflow: auto;
+  outline-offset: -2px;
+}
+
+.lines {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.lines thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 26px;
+  background: var(--ground);
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  font-weight: 400;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--ink-quiet);
+  padding: 0;
+}
+
+.sorter {
+  width: 100%;
+  height: 26px;
+  padding: 0 6px;
+  text-align: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sorter:hover {
+  color: var(--ink);
+}
+
+.sorter__dir {
+  font-size: 8px;
+  color: var(--ink);
+}
+
+.c-num .sorter {
+  justify-content: flex-end;
+}
+
+.row {
+  height: var(--h-row);
+}
+
+.row:nth-child(even of .row) {
+  background: var(--band);
+}
+
+.row:hover {
+  background: rgb(237 233 225 / 0.06);
+}
+
+/* Selection is a bone left edge, not a colour: colour encodes status. */
+.row--selected,
+.row--selected:hover {
+  background: rgb(237 233 225 / 0.09);
+  box-shadow: inset 2px 0 0 var(--ink);
+}
+
+.row--saving {
+  opacity: 0.55;
+}
+
+.lines td {
+  padding: 0 6px;
+  border-bottom: 1px solid var(--rule-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+/* Column widths sum to 1280 less the 32px page padding. The name column takes
+   whatever is left, because it is the one that carries meaning. */
+.c-flags { width: 34px; text-align: center; padding: 0 2px; }
+.c-id { width: 42px; }
+.c-ref { width: 76px; }
+.c-name { width: auto; }
+.c-type { width: 96px; }
+.c-pri { width: 54px; }
+.c-owner { width: 58px; }
+.c-num { width: 52px; text-align: right; }
+.c-status { width: 118px; }
+.c-blockers { width: 176px; }
+
+/* The name is the human half of the split; everything else is measurement. */
+.c-name .text {
+  font-size: 12px;
+}
+
+.blockerrefs {
+  padding-left: 4px;
+  color: var(--ink-quiet);
+  font-size: 10px;
+}
+
+.blockerref {
+  margin-right: 4px;
+}
+
+.blockerref--hard {
+  color: var(--blocked);
+}
+
+/* Markers. ▲ is greyscale because an inconsistency is not a status. ⚑ takes
+   the rust because "behind an open hard blocker" is the same fact the rail
+   paints rust — declared or latent, stuck is stuck. */
+.marker {
+  font-size: 10px;
+  padding: 0 1px;
+}
+
+.marker--warn {
+  color: var(--ink);
+}
+
+.marker--variance {
+  color: var(--ink);
+}
+
+.marker--hard {
+  color: var(--blocked);
+}
+
+.marker--soft {
+  color: var(--ink-quiet);
+}
+
+.marker--shared {
+  color: var(--ink-quiet);
+  padding-left: 3px;
+}
+
+/* The status cell is the popover's containing block, and it must not clip it.
+   This needs to out-specify `.lines td { overflow: hidden }` above. */
+.lines td.c-status {
+  position: relative;
+  overflow: visible;
+}
+
+/* ── Status pills ──────────────────────────────────────────────────────── */
+
+.pillbutton {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+
+.pill {
+  display: inline-block;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 2px 5px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* One hue at four densities, plus one alarm. The word is always present, so
+   the meaning survives greyscale and a screen reader. */
+.pill--NOT_STARTED {
+  background: var(--well);
+  color: var(--ink-quiet);
+  border-color: var(--rule);
+}
+
+.pill--IN_PROGRESS {
+  color: var(--work);
+  border-color: var(--work);
+}
+
+/*
+ * BUILT and TESTED carry the density ramp as a leading swatch rather than as a
+ * fill. A 45° hatch behind 9px type destroys the word, and the word is not
+ * optional — it is what makes the encoding survive greyscale and a screen
+ * reader. The swatches still sit in the same place at the same size, so BUILT
+ * and TESTED remain directly comparable down the column.
+ */
+.pill--BUILT,
+.pill--TESTED {
+  color: var(--ink);
+  border-color: var(--work);
+  background-color: var(--well);
+  background-repeat: no-repeat;
+  background-size: 12px 100%;
+  background-position: left center;
+  padding-left: 19px;
+}
+
+.pill--BUILT {
+  background-image: repeating-linear-gradient(45deg, var(--work) 0 1px, transparent 1px 6px);
+}
+
+.pill--TESTED {
+  background-image: repeating-linear-gradient(45deg, var(--work) 0 1px, transparent 1px 3px);
+}
+
+.pill--DONE {
+  background: var(--work);
+  color: var(--ground);
+  border-color: var(--work);
+}
+
+.pill--BLOCKED {
+  background: var(--blocked);
+  color: var(--ink);
+  border-color: var(--blocked);
+}
+
+.pill--DESCOPED {
+  color: var(--ink-quiet);
+  border-color: var(--rule);
+  text-decoration: line-through;
+}
+
+.pill--NOT_MINE {
+  color: var(--ink-quiet);
+  border: 1px dashed var(--ink-quiet);
+}
+
+/* Anchored to the cell, not a modal: nothing dims and nothing moves. */
+.statusmenu {
+  position: absolute;
+  top: 100%;
+  left: 4px;
+  max-height: none;
+  z-index: 5;
+  background: var(--ground);
+  border: 1px solid var(--rule);
+  padding: 3px;
+  min-width: 190px;
+}
+
+/* Near the bottom of the grid the menu opens upward instead of being clipped. */
+.statusmenu--flip {
+  top: auto;
+  bottom: 100%;
+}
+
+.statusmenu__item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 2px 4px;
+  text-align: left;
+}
+
+.statusmenu__item:hover {
+  background: var(--well);
+}
+
+.statusmenu__key {
+  color: var(--ink-quiet);
+  font-size: 10px;
+  width: 9px;
+}
+
+.statusmenu__gate {
+  margin-left: auto;
+  color: var(--ink-quiet);
+  font-size: 9px;
+}
+
+/* ── Inline sub-rows ───────────────────────────────────────────────────── */
+
+.subrow td {
+  background: var(--well);
+  border-bottom: 1px solid var(--rule);
+  padding: 6px 8px 6px 40px;
+  white-space: normal;
+}
+
+.subrow__form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.subrow__label {
+  font-size: 10px;
+  color: var(--ink-quiet);
+}
+
+.subrow__input {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  padding: 3px 6px;
+}
+
+.subrow--error td {
+  background: var(--ground);
+  border-left: 2px solid var(--ink);
+  color: var(--ink);
+}
+
+.grid__empty {
+  padding: 20px 16px;
+  color: var(--ink-quiet);
+}
+
+.grid__hint {
+  margin: 0;
+  padding: 0 16px;
+  font-size: 9px;
+  line-height: 20px;
+  color: var(--ink-quiet);
+  border-top: 1px solid var(--rule-faint);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.grid__hint b {
+  color: var(--ink);
+  font-weight: 400;
+}
+
+.statusbar b {
+  color: var(--ink);
+  font-weight: 400;
+}
+
+/* ── Inline editors ────────────────────────────────────────────────────── */
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.editor__line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor__lead {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  min-width: 128px;
+}
+
+.editor__lead--required::after {
+  content: ' required';
+  color: var(--ink-quiet);
+  letter-spacing: 0;
+}
+
+.editor__label {
+  font-size: 10px;
+  color: var(--ink-quiet);
+}
+
+.editor__figure {
+  font-size: 11px;
+  color: var(--ink);
+}
+
+.editor__days {
+  width: 64px;
+  font-size: 11px;
+  padding: 3px 6px;
+  text-align: right;
+}
+
+.editor__text {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  padding: 3px 6px;
+}
+
+.editor__who {
+  width: 150px;
+  font-size: 11px;
+  padding: 3px 6px;
+}
+
+.editor__spacer {
+  flex: 1;
+}
+
+/* Days and proportion side by side — the size has to be obvious here, at the
+   moment of logging, not later in a report. */
+.editor__variance {
+  font-size: 12px;
+  color: var(--ink);
+  min-width: 56px;
+}
+
+.editor__why {
+  margin: 0;
+  color: var(--ink-quiet);
+  border-left: 2px solid var(--ink);
+  padding-left: 10px;
+  max-width: 760px;
+}
+
+/* The closed list, all five visible. A dropdown would hide TOOLING, which is
+   the one that matters most. */
+.cause {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border: 1px solid var(--rule);
+  color: var(--ink-quiet);
+  background: var(--ground);
+}
+
+.cause:hover {
+  color: var(--ink);
+  border-color: var(--ink-quiet);
+}
+
+.cause[aria-pressed='true'] {
+  color: var(--ground);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+/* Zero-centred, greyscale: a variance cause is not a status. */
+.vbar {
+  position: relative;
+  display: inline-block;
+  width: 140px;
+  height: 8px;
+  background: var(--well);
+  vertical-align: middle;
+}
+
+.vbar--wide {
+  width: 100%;
+  min-width: 120px;
+}
+
+.vbar__zero {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--rule);
+}
+
+.vbar__fill {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  background: var(--ink-quiet);
+}
+
+.vbar__over {
+  position: absolute;
+  right: 1px;
+  top: -3px;
+  font-size: 8px;
+  color: var(--ink);
+}
+
+/* ── Variances view ────────────────────────────────────────────────────── */
+
+.view--variances {
+  display: block;
+  overflow: auto;
+  padding: 0;
+}
+
+.rollup {
+  border-bottom: 1px solid var(--rule);
+  padding: 10px 16px 12px;
+}
+
+.rollup--rows {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.rollup__title {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.rollup__hint {
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--ink-quiet);
+  font-size: 10px;
+}
+
+.rollup__tag {
+  margin-left: 7px;
+  font-size: 9px;
+  color: var(--ink-quiet);
+  border: 1px solid var(--rule);
+  padding: 0 4px;
+}
+
+.rollup__table {
+  max-width: 940px;
+}
+
+.rollup__scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--ink-quiet);
+  letter-spacing: 0;
+  padding: 0 6px;
+}
+
+.rollup__foot {
+  margin: 8px 0 0;
+  color: var(--ink-quiet);
+  font-size: 11px;
+}
+
+.rollup__foot code {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink);
+}
+
+/* A cause with nothing against it still shows a zero — "nothing logged against
+   tooling" is itself a finding. */
+.row--empty td {
+  color: var(--ink-quiet);
+}
+
+.grid--flush {
+  overflow: visible;
+}
+
+.c-cause { width: 150px; }
+.c-when { width: 116px; }
+.c-who { width: 130px; }
+.c-note { width: 260px; }
+.c-bar { width: auto; }
+
+/* The bar sits on --well inside an editor sub-row and on --ground in the
+   rollup, so it carries its own recess rather than relying on either. */
+.vbar {
+  background: var(--ground);
+  box-shadow: inset 0 0 0 1px var(--rule-faint);
+}
+
+/* Fixed layout gave the last column everything left over, squeezing IMPLIED
+   and STATED until their headers touched. */
+.rollup__table .c-num {
+  width: 76px;
+}
+
+.rollup__table .c-bar {
+  width: 240px;
+}
+
+/* ── Blockers register ─────────────────────────────────────────────────── */
+
+.c-qref { width: 52px; }
+.c-qowner { width: 148px; }
+.c-needed { width: 158px; }
+.c-qstatus { width: 118px; }
+.c-chased { width: 92px; }
+.c-blocks { width: 168px; }
+
+/* The question is prose and clickable: the seed runs past 600 characters, so
+   the row shows what fits and the click shows the rest. */
+.qtext {
+  display: block;
+  width: 100%;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.qtext:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.qfull {
+  margin: 0;
+  max-width: 1100px;
+  color: var(--ink);
+}
+
+.qstatus,
+.chase {
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  background: var(--well);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: 2px 4px;
+  width: 100%;
+}
+
+.chase {
+  text-align: left;
+  color: var(--ink-quiet);
+}
+
+.chase:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--ink-quiet);
+}
+
+/* ── Today ─────────────────────────────────────────────────────────────── */
+
+.view--today {
+  display: block;
+  overflow: auto;
+  padding: 0 0 24px;
+}
+
+.today {
+  display: grid;
+  grid-template-columns: minmax(520px, 1.4fr) 1fr 1fr;
+  gap: 1px;
+  background: var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.panel {
+  background: var(--ground);
+  padding: 12px 16px 14px;
+}
+
+.panel__title {
+  margin: 0 0 10px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.panel__hint {
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--ink-quiet);
+}
+
+/* The do-not list is the one that protects the block, so it is marked as its
+   own thing rather than being a second column of the same list. */
+.panel--donot .panel__title {
+  color: var(--ink);
+}
+
+.panel--donot .field__area {
+  border-left: 2px solid var(--ink-quiet);
+}
+
+.field {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.field__label {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--ink-quiet);
+  margin-bottom: 4px;
+}
+
+.field__input {
+  width: 100%;
+  font-size: 11px;
+  padding: 4px 6px;
+}
+
+.field__area {
+  width: 100%;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--well);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: 6px 8px;
+  resize: vertical;
+}
+
+.field__note {
+  margin: 6px 0 0;
+  color: var(--ink-quiet);
+}
+
+.targets {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--rule-faint);
+}
+
+.targets__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--rule-faint);
+  font-size: 11px;
+}
+
+.targets__id { width: 36px; }
+.targets__ref { width: 58px; color: var(--ink-quiet); }
+.targets__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.targets__days { color: var(--ink-quiet); font-size: 10px; white-space: nowrap; }
+
+.today__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 10px;
+}
+
+.today__notice {
+  color: var(--ink);
+}
+
+.today__error {
+  color: var(--ink);
+  border-left: 2px solid var(--ink);
+  padding-left: 8px;
+}
+
+.closing {
+  padding: 12px 16px 16px;
+}
+
+.closing__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+/* ── Log ───────────────────────────────────────────────────────────────── */
+
+.view--log {
+  display: grid;
+  grid-template-columns: minmax(560px, 1.5fr) minmax(420px, 1fr);
+  gap: 1px;
+  background: var(--rule);
+  overflow: hidden;
+  padding: 0;
+}
+
+.logcol {
+  background: var(--ground);
+  padding: 12px 16px 20px;
+  overflow: auto;
+}
+
+.logempty {
+  color: var(--ink-quiet);
+  max-width: 560px;
+  margin: 0;
+}
+
+.daylog {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.daylog__entry {
+  border-top: 1px solid var(--rule);
+  padding: 10px 0 12px;
+}
+
+.daylog__head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.daylog__date {
+  font-size: 11px;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+}
+
+.daylog__time,
+.daylog__actor {
+  font-size: 10px;
+  color: var(--ink-quiet);
+}
+
+.daylog__field {
+  display: flex;
+  gap: 10px;
+  padding: 2px 0;
+}
+
+.daylog__label {
+  flex: none;
+  width: 82px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--ink-quiet);
+  padding-top: 3px;
+}
+
+.daylog__field .text {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+}
+
+/* The variance register sits in a narrower column here than in the VARIANCES
+   view, and table-layout:fixed does not shrink to fit — so it gets its own
+   widths rather than clipping the last column. */
+.logcol--variances .c-when { width: 88px; }
+.logcol--variances .c-cause { width: 124px; }
+.logcol--variances .c-num { width: 48px; }
+.logcol--variances .c-id { width: 44px; }
+
+.logcol--variances table {
+  min-width: 440px;
+}
+
+.statusbar__note {
+  color: var(--ink);
+}
+
+.linkish:disabled {
+  color: var(--ink-quiet);
+  text-decoration: none;
+  cursor: default;
+}

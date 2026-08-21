@@ -1,5 +1,5 @@
 import type pg from 'pg';
-import { withTransaction } from '../db/pool.js';
+import { withTransaction, type Db } from '../db/pool.js';
 import { appendAudit, type Actor } from '../domain/audit.js';
 
 /**
@@ -72,4 +72,44 @@ export async function logDay(pool: pg.Pool, input: DayLogInput, actor: Actor): P
       entriesForDate: Number.parseInt(count.rows[0]?.count ?? '1', 10),
     };
   });
+}
+
+/** The whole log, newest first. Append-only, so this is the complete history. */
+export interface DayLogRow {
+  id: string;
+  date: string;
+  moved: string | null;
+  decisions: string | null;
+  blockersMoved: string | null;
+  tomorrow: string | null;
+  ts: string;
+  actor: string;
+}
+
+export async function listDayLog(db: Db): Promise<DayLogRow[]> {
+  const result = await db.query<{
+    id: string;
+    log_date: string;
+    moved: string | null;
+    decisions: string | null;
+    blockers_moved: string | null;
+    tomorrow: string | null;
+    ts: Date;
+    actor: string;
+  }>(
+    `SELECT id::text AS id, log_date, moved, decisions, blockers_moved, tomorrow, ts, actor
+     FROM day_log
+     ORDER BY log_date DESC, ts DESC, id DESC`,
+  );
+
+  return result.rows.map((row) => ({
+    id: row.id,
+    date: row.log_date,
+    moved: row.moved,
+    decisions: row.decisions,
+    blockersMoved: row.blockers_moved,
+    tomorrow: row.tomorrow,
+    ts: row.ts.toISOString(),
+    actor: row.actor,
+  }));
 }

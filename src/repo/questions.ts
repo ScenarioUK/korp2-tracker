@@ -222,3 +222,60 @@ export async function updateQuestion(
 
   return { question, changes, noteAppended, affectedLines, followUp };
 }
+
+/**
+ * Every question, whole, with the lines each one blocks.
+ *
+ * Unpaginated and untruncated, unlike listQuestions: the browser has no token
+ * ceiling, and a blocker you can only read the first 240 characters of is not
+ * much use when deciding whether to chase it.
+ */
+export interface QuestionRowFull extends QuestionSummary {
+  /** Line ids this question blocks, and the AI-days they carry. */
+  blockedLineIds: string[];
+  blockedAiDays: number;
+  noteCount: number;
+}
+
+export async function listAllQuestions(db: Db): Promise<QuestionRowFull[]> {
+  const result = await db.query<{
+    ref: string;
+    question: string;
+    owner: string | null;
+    needed_by: string | null;
+    hard_blocker: boolean;
+    status: BlockerStatus;
+    last_chased: string | null;
+    blocked_line_ids: string[];
+    blocked_ai_days: number;
+    note_count: string;
+  }>(
+    `SELECT q.ref, q.question, q.owner, q.needed_by, q.hard_blocker, q.status, q.last_chased,
+            COALESCE(b.ids, '{}'::text[]) AS blocked_line_ids,
+            COALESCE(b.days, 0)           AS blocked_ai_days,
+            (SELECT count(*)::text FROM question_notes n WHERE n.question_ref = q.ref) AS note_count
+     FROM questions q
+     LEFT JOIN LATERAL (
+       SELECT array_agg(l.id ORDER BY l.id) AS ids,
+              sum(l.ai_days)                AS days
+       FROM line_blockers lb
+       JOIN build_lines l ON l.id = lb.line_id
+       WHERE lb.question_ref = q.ref AND l.status <> 'DESCOPED'
+     ) b ON true
+     ORDER BY q.ref`,
+  );
+
+  return result.rows.map((row) => ({
+    ref: row.ref,
+    question: row.question,
+    truncated: false,
+    owner: row.owner,
+    neededBy: row.needed_by,
+    hardBlocker: row.hard_blocker,
+    status: row.status,
+    lastChased: row.last_chased,
+    blockedLineIds: row.blocked_line_ids,
+    blockedAiDays: row.blocked_ai_days,
+    noteCount: Number.parseInt(row.note_count, 10),
+  }));
+}

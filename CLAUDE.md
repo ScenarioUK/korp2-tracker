@@ -48,7 +48,16 @@ UI. Deployed to DigitalOcean App Platform from GitHub.
 - Prefer boring, obvious code. I maintain this alone.
 
 ## Commands
-- `npm run dev` — local dev server
-- `npm run build` — typecheck and build
+- `npm run dev` — local dev server (serves the built UI from dist/ui)
+- `npm run dev:ui` — Vite dev server for the UI, proxying /api to `npm run dev`
+- `npm run build` — typecheck server and UI, then build both
 - `npm start` — production start (what DigitalOcean runs)
 - `npm test` — tests
+
+## UI
+React + Vite in `ui/`, built to `dist/ui` and served as static files by the
+same Express app. Auth is a UI_TOKEN bearer header, pasted once and held in
+localStorage; a 401 clears it and returns to the paste screen. UI_TOKEN is a
+separate credential from MCP_TOKEN and the app refuses to start if they match.
+Design: desktop-first 1280px+, dark, six named colours, colour encodes status
+only, IBM Plex Mono for data and Source Serif 4 for prose.

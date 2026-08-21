@@ -2,8 +2,9 @@ import type pg from 'pg';
 import { withTransaction, type Db } from '../db/pool.js';
 import { appendAudit, changeFor, type Actor, type FieldChange } from '../domain/audit.js';
 import { NotFound, RuleViolation } from '../domain/errors.js';
-import type { AuditEntry, LineDetail, LineSummary, Page, QuestionSummary, VarianceEntry } from '../domain/types.js';
+import type { AuditEntry, LineDetail, LineSummary, Page, QuestionSummary, VarianceEntry, Warning } from '../domain/types.js';
 import { lineWarnings } from '../domain/warnings.js';
+import { insertVariance, type VarianceInput } from './variances.js';
 import type { BlockerStatus, Status } from '../domain/vocab.js';
 
 /**
@@ -43,13 +44,21 @@ interface LineSummaryRow {
 }
 
 /**
+ * Refs are a letter prefix plus a number, so ORDER BY on the text puts G15
+ * between G1 and G2. Sorting on (prefix, number) keeps every printed list —
+ * a line's blockers, the rail's at-risk refs — in the order a person reads.
+ */
+const REF_ORDER = "substring(lb.question_ref from '^[A-Za-z]+'), " +
+  "COALESCE(NULLIF(substring(lb.question_ref from '[0-9]+'), ''), '0')::int";
+
+/**
  * One subquery gives both the full blocker list and the subset that is
  * currently an OPEN hard blocker, which is what the consistency check needs.
  */
 export const BLOCKER_LATERAL = `
   LEFT JOIN LATERAL (
-    SELECT array_agg(lb.question_ref ORDER BY lb.question_ref) AS all_refs,
-           array_agg(lb.question_ref ORDER BY lb.question_ref)
+    SELECT array_agg(lb.question_ref ORDER BY ${REF_ORDER}) AS all_refs,
+           array_agg(lb.question_ref ORDER BY ${REF_ORDER})
              FILTER (WHERE q.status = 'OPEN' AND q.hard_blocker) AS open_hard
     FROM line_blockers lb
     JOIN questions q ON q.ref = lb.question_ref
@@ -124,6 +133,61 @@ export async function listLines(
 
   const nextOffset = offset + result.rows.length < total ? offset + result.rows.length : null;
   return { items: result.rows.map(toSummary), total, offset, nextOffset };
+}
+
+/**
+ * Every line, with the columns the browser table shows, in one query.
+ *
+ * Deliberately unpaginated and unfiltered: 46 rows is one small response, and
+ * filtering and sorting 46 rows in the browser is instant and needs no round
+ * trip. listLines above stays paginated because the MCP connector has a token
+ * ceiling; this surface does not.
+ *
+ * openHardBlockers travels alongside blockers so the table can mark a latent
+ * blocker without a second call, and the warnings are computed here with the
+ * same lineWarnings() the MCP side uses — one definition of inconsistent.
+ */
+export interface LineRow extends LineSummary {
+  priority: string | null;
+  owner: string | null;
+  note: string | null;
+  openHardBlockers: string[];
+  /**
+   * How many variances are already on file. The browser needs this to apply
+   * the same "already explained" rule the DONE gate applies server-side,
+   * rather than demanding a cause the server would not require.
+   */
+  varianceCount: number;
+  warnings: Warning[];
+}
+
+export async function listAllLines(db: Db): Promise<LineRow[]> {
+  const result = await db.query<
+    LineSummaryRow & { priority: string | null; owner: string | null; note: string | null; variance_count: string }
+  >(
+    `SELECT ${SUMMARY_COLUMNS}, l.priority, l.owner, l.note,
+            (SELECT count(*)::text FROM variances v WHERE v.line_id = l.id) AS variance_count
+     FROM build_lines l
+     ${BLOCKER_LATERAL}
+     ORDER BY l.id`,
+  );
+
+  return result.rows.map((row) => ({
+    ...toSummary(row),
+    priority: row.priority,
+    owner: row.owner,
+    note: row.note,
+    openHardBlockers: row.open_hard_blockers,
+    varianceCount: Number.parseInt(row.variance_count, 10),
+    warnings: lineWarnings({
+      id: row.id,
+      ref: row.ref,
+      shortName: row.short_name,
+      status: row.status,
+      blockers: row.blockers,
+      openHardBlockers: row.open_hard_blockers,
+    }),
+  }));
 }
 
 interface LineDetailRow extends LineSummaryRow {
@@ -278,6 +342,24 @@ export interface VariancePrompt {
   message: string;
 }
 
+export interface UpdateLineOptions {
+  /**
+   * The variance to record alongside this change, in the same transaction.
+   * est_ai_days is taken from the line, so this cannot restate the estimate.
+   */
+  variance?: Omit<VarianceInput, 'lineId' | 'estAiDays' | 'actualDays'>;
+  /**
+   * Refuse the write when it would leave the line DONE at a number of days
+   * different from its estimate with no variance to explain it.
+   *
+   * The browser sets this and MCP does not, and that asymmetry is deliberate:
+   * a form can block a save and hold the user there, a tool call cannot — so
+   * MCP takes the write and returns varianceNeeded instead. Same rule, enforced
+   * where each surface is able to enforce it.
+   */
+  requireVarianceOnDone?: boolean;
+}
+
 export interface UpdateLineResult {
   line: LineDetail;
   changes: FieldChange[];
@@ -301,6 +383,7 @@ export async function updateLine(
   rawId: string,
   update: LineUpdate,
   actor: Actor,
+  options: UpdateLineOptions = {},
 ): Promise<UpdateLineResult> {
   const id = rawId.trim().toUpperCase();
 
@@ -330,6 +413,36 @@ export async function updateLine(
       );
     }
 
+    // What the line will look like once this write lands.
+    const nextStatus = update.status ?? before.status;
+    const nextActualDays = update.actualDays !== undefined ? update.actualDays : before.actual_days;
+    const offEstimate =
+      nextStatus === 'DONE' &&
+      nextActualDays !== null &&
+      before.ai_days !== null &&
+      nextActualDays !== before.ai_days;
+
+    // A variance already on file means the divergence has been explained once;
+    // this write is an edit, not the moment of completion.
+    const alreadyExplained = offEstimate
+      ? (
+          await client.query<{ count: string }>(
+            'SELECT count(*)::text AS count FROM variances WHERE line_id = $1',
+            [id],
+          )
+        ).rows[0]?.count !== '0'
+      : false;
+
+    if (options.requireVarianceOnDone && offEstimate && !alreadyExplained && !options.variance) {
+      const difference = Math.round(((nextActualDays as number) - (before.ai_days as number)) * 100) / 100;
+      throw new RuleViolation(
+        `Cannot save ${id} as DONE at ${nextActualDays} days against an estimate of ${before.ai_days} ` +
+          `(${difference > 0 ? '+' : ''}${difference}) without a cause. This is how the AI co-working factors get ` +
+          'validated against reality instead of asserted. Choose one of SCOPE, AMBIGUITY, DEPENDENCY_WAIT, ' +
+          'ESTIMATE_ERROR or TOOLING — TOOLING is the one that tells us whether the factors hold.',
+      );
+    }
+
     const assignments: string[] = [];
     const params: unknown[] = [];
     const set = (column: string, value: unknown) => {
@@ -356,6 +469,20 @@ export async function updateLine(
     }
 
     await appendAudit(client, actor, 'build_line', id, fieldChanges);
+
+    if (options.variance && nextActualDays !== null) {
+      await insertVariance(
+        client,
+        {
+          lineId: id,
+          actualDays: nextActualDays,
+          cause: options.variance.cause,
+          note: options.variance.note ?? null,
+          declaredTo: options.variance.declaredTo ?? null,
+        },
+        actor,
+      );
+    }
 
     if (enteringDescoped) {
       await client.query(

@@ -1,5 +1,5 @@
 import type pg from 'pg';
-import { withTransaction } from '../db/pool.js';
+import { withTransaction, type Db } from '../db/pool.js';
 import { appendAudit, type Actor } from '../domain/audit.js';
 import { NotFound } from '../domain/errors.js';
 import type { VarianceCause } from '../domain/vocab.js';
@@ -20,6 +20,7 @@ export interface VarianceInput {
   estAiDays?: number;
   actualDays: number;
   cause: VarianceCause;
+  note?: string | null;
   declaredTo?: string | null;
 }
 
@@ -32,14 +33,30 @@ export interface LoggedVariance {
   actualDays: number;
   differenceDays: number;
   cause: VarianceCause;
+  note: string | null;
   declaredTo: string | null;
   ts: string;
 }
 
 export async function logVariance(pool: pg.Pool, input: VarianceInput, actor: Actor): Promise<LoggedVariance> {
+  return withTransaction(pool, async (client) => insertVariance(client, input, actor));
+}
+
+/**
+ * The insert itself, on a caller-supplied client.
+ *
+ * updateLine calls this inside its own transaction so that a line reaching DONE
+ * off its estimate cannot be saved without the variance that explains it — the
+ * two either both land or neither does.
+ */
+export async function insertVariance(
+  client: pg.PoolClient,
+  input: VarianceInput,
+  actor: Actor,
+): Promise<LoggedVariance> {
   const lineId = input.lineId.trim().toUpperCase();
 
-  return withTransaction(pool, async (client) => {
+  {
     const lineResult = await client.query<{
       id: string;
       ref: string | null;
@@ -56,12 +73,13 @@ export async function logVariance(pool: pg.Pool, input: VarianceInput, actor: Ac
 
     const estAiDays = input.estAiDays ?? line.ai_days ?? 0;
     const declaredTo = input.declaredTo?.trim() || null;
+    const note = input.note?.trim() || null;
 
     const inserted = await client.query<{ id: string; ts: Date }>(
-      `INSERT INTO variances (line_id, est_ai_days, actual_days, cause, declared_to, actor)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO variances (line_id, est_ai_days, actual_days, cause, note, declared_to, actor)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id::text AS id, ts`,
-      [lineId, estAiDays, input.actualDays, input.cause, declaredTo, actor],
+      [lineId, estAiDays, input.actualDays, input.cause, note, declaredTo, actor],
     );
     const row = inserted.rows[0];
     if (!row) throw new Error('Variance insert returned no row.');
@@ -72,7 +90,10 @@ export async function logVariance(pool: pg.Pool, input: VarianceInput, actor: Ac
       {
         field: 'variance',
         from: null,
-        to: `${input.cause}: ${estAiDays} estimated vs ${input.actualDays} actual (${difference > 0 ? '+' : ''}${difference} days)${declaredTo ? `, declared to ${declaredTo}` : ''}`,
+        to:
+          `${input.cause}: ${estAiDays} estimated vs ${input.actualDays} actual ` +
+          `(${difference > 0 ? '+' : ''}${difference} days)` +
+          `${declaredTo ? `, declared to ${declaredTo}` : ''}${note ? `, note: ${note}` : ''}`,
       },
     ]);
 
@@ -85,8 +106,78 @@ export async function logVariance(pool: pg.Pool, input: VarianceInput, actor: Ac
       actualDays: input.actualDays,
       differenceDays: difference,
       cause: input.cause,
+      note,
       declaredTo,
       ts: row.ts.toISOString(),
     };
-  });
+  }
+}
+
+/**
+ * Every logged variance, newest first, with the line fields the view needs.
+ *
+ * soloDays, aiFactor and buildType come along so the TOOLING rollup can show
+ * the implied factor against the stated one. They are read here and never
+ * written — divergence is a variance, not a re-cut of the estimate.
+ */
+export interface VarianceRow {
+  id: string;
+  ts: string;
+  lineId: string;
+  ref: string | null;
+  shortName: string;
+  buildType: string | null;
+  soloDays: number | null;
+  aiFactor: number | null;
+  estAiDays: number;
+  actualDays: number;
+  differenceDays: number;
+  cause: VarianceCause;
+  note: string | null;
+  declaredTo: string | null;
+  actor: string;
+}
+
+export async function listVariances(db: Db): Promise<VarianceRow[]> {
+  const result = await db.query<{
+    id: string;
+    ts: Date;
+    line_id: string;
+    ref: string | null;
+    short_name: string;
+    build_type: string | null;
+    solo_days: number | null;
+    ai_factor: number | null;
+    est_ai_days: number;
+    actual_days: number;
+    cause: VarianceCause;
+    note: string | null;
+    declared_to: string | null;
+    actor: string;
+  }>(
+    `SELECT v.id::text AS id, v.ts, v.line_id, v.est_ai_days, v.actual_days, v.cause,
+            v.note, v.declared_to, v.actor,
+            l.ref, l.short_name, l.build_type, l.solo_days, l.ai_factor
+     FROM variances v
+     JOIN build_lines l ON l.id = v.line_id
+     ORDER BY v.ts DESC, v.id DESC`,
+  );
+
+  return result.rows.map((row) => ({
+    id: row.id,
+    ts: row.ts.toISOString(),
+    lineId: row.line_id,
+    ref: row.ref,
+    shortName: row.short_name,
+    buildType: row.build_type,
+    soloDays: row.solo_days,
+    aiFactor: row.ai_factor,
+    estAiDays: row.est_ai_days,
+    actualDays: row.actual_days,
+    differenceDays: Math.round((row.actual_days - row.est_ai_days) * 100) / 100,
+    cause: row.cause,
+    note: row.note,
+    declaredTo: row.declared_to,
+    actor: row.actor,
+  }));
 }

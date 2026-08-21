@@ -42,7 +42,7 @@ async function main(): Promise<void> {
 
   const app = createApp(pool, config);
   const server = app.listen(config.port, () => {
-    console.log(`[boot] listening on ${config.port} — GET /health, POST /mcp`);
+    console.log(`[boot] listening on ${config.port} — GET /, GET /health, GET /api/*, POST /mcp`);
   });
 
   const shutdown = (signal: string) => {

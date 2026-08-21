@@ -13,8 +13,10 @@ export interface Config {
   databaseUrl: string;
   databaseSsl: boolean | ConnectionOptions;
   mcpToken: string;
+  uiToken: string;
   seedFile: string;
   migrationsDir: string;
+  uiDir: string;
   serviceName: string;
   serviceVersion: string;
 }
@@ -54,9 +56,18 @@ function sslFor(databaseUrl: string): boolean | ConnectionOptions {
 export function loadConfig(): Config {
   const databaseUrl = required('DATABASE_URL');
   const mcpToken = required('MCP_TOKEN');
+  const uiToken = required('UI_TOKEN');
 
   if (mcpToken.length < 24) {
     throw new ConfigError('MCP_TOKEN is too short to be a credential. Use at least 24 characters.');
+  }
+  if (uiToken.length < 24) {
+    throw new ConfigError('UI_TOKEN is too short to be a credential. Use at least 24 characters.');
+  }
+  // Two faces, two credentials. Sharing one would mean revoking the connector
+  // also locks Patrick out of the browser, and vice versa.
+  if (uiToken === mcpToken) {
+    throw new ConfigError('UI_TOKEN and MCP_TOKEN must be different values.');
   }
 
   // DigitalOcean App Platform sets PORT. Never hardcode it; 3000 is only the
@@ -71,10 +82,13 @@ export function loadConfig(): Config {
     databaseUrl,
     databaseSsl: sslFor(databaseUrl),
     mcpToken,
-    // Both of these are read from the repo at runtime rather than compiled in.
+    uiToken,
+    // These are read from the repo at runtime rather than compiled in.
     // App Platform deploys the whole repo, so cwd is the project root.
     seedFile: process.env.SEED_FILE ?? 'docs/korp2-tracker-seed.json',
     migrationsDir: process.env.MIGRATIONS_DIR ?? 'src/db/migrations',
+    // Where `vite build` puts the SPA. Served as static files by this same app.
+    uiDir: process.env.UI_DIR ?? 'dist/ui',
     serviceName: 'korp2-tracker',
     serviceVersion: '0.1.0',
   };

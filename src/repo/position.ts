@@ -97,7 +97,13 @@ export async function getPosition(db: Db): Promise<Position> {
   const days = dayRows.rows[0];
 
   const blockerRows = await db.query<{ ref: string }>(
-    `SELECT ref FROM questions WHERE status = 'OPEN' AND hard_blocker ORDER BY ref`,
+    // Natural order, not string order: refs are a letter prefix plus a number,
+    // so a plain ORDER BY puts G15 between G1 and G2 and the list reads wrong
+    // everywhere it is printed.
+    `SELECT ref FROM questions
+     WHERE status = 'OPEN' AND hard_blocker
+     ORDER BY substring(ref from '^[A-Za-z]+'),
+              COALESCE(NULLIF(substring(ref from '[0-9]+'), ''), '0')::int`,
   );
 
   const linesBlocked = await db.query<{ count: string }>(

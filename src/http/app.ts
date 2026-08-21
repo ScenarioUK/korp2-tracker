@@ -3,11 +3,14 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import type pg from 'pg';
 import type { Config } from '../config.js';
 import { createMcpServer } from '../mcp/server.js';
+import { createApiRouter } from './api.js';
 import { bearerAuth } from './bearerAuth.js';
 import { healthHandler } from './health.js';
+import { mountSpa } from './spa.js';
 
 /**
- * Two routes: GET /health (open) and POST /mcp (bearer).
+ * Three faces on one app: GET /health (open), POST /mcp (MCP_TOKEN), /api
+ * (UI_TOKEN), and the built SPA as static files underneath all of them.
  *
  * /mcp is Streamable HTTP, stateless — a fresh transport per request with
  * sessionIdGenerator undefined, closed when the response ends. That survives
@@ -19,6 +22,8 @@ export function createApp(pool: pg.Pool, config: Config): express.Express {
   app.disable('x-powered-by');
 
   app.get('/health', healthHandler(pool, config));
+
+  app.use('/api', createApiRouter(pool, config));
 
   app.post(
     '/mcp',
@@ -59,6 +64,9 @@ export function createApp(pool: pg.Pool, config: Config): express.Express {
   };
   app.get('/mcp', methodNotAllowed);
   app.delete('/mcp', methodNotAllowed);
+
+  // Last, so /health, /api and /mcp keep their own 404s and their own shapes.
+  mountSpa(app, config);
 
   app.use((_req: Request, res: Response) => {
     res.status(404).json({ error: 'not_found' });
